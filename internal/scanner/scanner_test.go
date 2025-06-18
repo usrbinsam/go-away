@@ -1,7 +1,6 @@
 package scanner_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/usrbinsam/go-away/internal/message"
@@ -27,7 +26,7 @@ func TestHeaderScanner_ScanMatch(t *testing.T) {
 			{Name: "From", Value: "foo@example.com"},
 			{Name: "List-Unsubscribe", Value: "<mailto:abuse@fbi.gov>"},
 		},
-		strings.NewReader("Click nowhere to unsubscribe."),
+		"Click nowhere to unsubscribe.",
 	)
 
 	scanner := &scanner.HeaderScanner{}
@@ -41,7 +40,7 @@ func TestHeaderScanner_ScanNoMatch(t *testing.T) {
 		[]message.Header{
 			{Name: "From", Value: "foo@bar.com"},
 		},
-		strings.NewReader("Click nowhere to unsubscribe."),
+		"Click nowhere to unsubscribe.",
 	)
 
 	scanner := &scanner.HeaderScanner{}

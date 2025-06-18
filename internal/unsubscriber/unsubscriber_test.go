@@ -1,7 +1,6 @@
 package unsubscriber_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/usrbinsam/go-away/internal/message"
@@ -38,7 +37,7 @@ func TestRFC2369Unsubscriber_Unsubscribe(t *testing.T) {
 						Value: "(\"Click here to unsubscribe \") <mailto:go-away@go-away.com?subject=unsubscribe&body=GO%20AWAY>",
 					},
 				},
-				strings.NewReader("Click nowhere to unsubscribe."),
+				"Click nowhere to unsubscribe.",
 			),
 			expectedTo:      "go-away@go-away.com",
 			expectedSubject: "unsubscribe",
@@ -52,7 +51,7 @@ func TestRFC2369Unsubscriber_Unsubscribe(t *testing.T) {
 						Value: "<http://unsubscribe.go-away.com/?email=foo>, <mailto:go-away@go-away.com?subject=unsubscribe&body=GO%20AWAY>",
 					},
 				},
-				strings.NewReader("Click nowhere to unsubscribe."),
+				"Click nowhere to unsubscribe.",
 			),
 			expectedTo:      "go-away@go-away.com",
 			expectedSubject: "unsubscribe",
@@ -66,7 +65,7 @@ func TestRFC2369Unsubscriber_Unsubscribe(t *testing.T) {
 						Value: "mailto:go-away@go-away.com?subject=unsubscribe&body=GO%20AWAY",
 					},
 				},
-				strings.NewReader("Click nowhere to unsubscribe."),
+				"Click nowhere to unsubscribe.",
 			),
 			expectedTo:      "go-away@go-away.com",
 			expectedSubject: "unsubscribe",
