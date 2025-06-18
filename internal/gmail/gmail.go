@@ -14,46 +14,46 @@ type GmailProvider struct {
 	httpClient   *http.Client
 }
 
-type MessageHeader struct {
+type GmailMessageHeader struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 }
 
-type MessagePartBody struct {
+type GmailMessagePartBody struct {
 	AttachmentId string `json:"attachmentId"`
 	Size         int    `json:"size"`
 	Data         []byte `json:"data"`
 }
 
-type MessagePart struct {
-	PartId   string          `json:"partId"`
-	MimeType string          `json:"mimeType"`
-	Filename string          `json:"filename,omitempty"`
-	Headers  []MessageHeader `json:"headers"`
-	Body     MessagePartBody `json:"body"`
-	Parts    []MessagePart   `json:"parts"`
+type GmailMessagePart struct {
+	PartId   string               `json:"partId"`
+	MimeType string               `json:"mimeType"`
+	Filename string               `json:"filename,omitempty"`
+	Headers  []GmailMessageHeader `json:"headers"`
+	Body     GmailMessagePartBody `json:"body"`
+	Parts    []GmailMessagePart   `json:"parts"`
 }
 
-// Message is documented at https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages#Message
-type Message struct {
-	Id        string      `json:"id"`
-	ThreadId  string      `json:"threadId"`
-	Snippet   string      `json:"snippet,omitempty"`
-	Payload   MessagePart `json:"payload"`
-	Raw       string      `json:"raw,omitempty"`
-	LabelIds  []string    `json:"labelIds,omitempty"`
-	HistoryId string      `json:"historyId"`
+// GmailMessage is documented at https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages#GmailMessage
+type GmailMessage struct {
+	Id        string           `json:"id"`
+	ThreadId  string           `json:"threadId"`
+	Snippet   string           `json:"snippet,omitempty"`
+	Payload   GmailMessagePart `json:"payload"`
+	Raw       string           `json:"raw,omitempty"`
+	LabelIds  []string         `json:"labelIds,omitempty"`
+	HistoryId string           `json:"historyId"`
 }
 
-type MessageListItem struct {
+type GmailMessageListItem struct {
 	Id string `json:"id"`
 	// ThreadId string `json:"threadId"`
 }
 
-type MessageListResponse struct {
-	Messages           []MessageListItem `json:"messages"`
-	NextPageToken      string            `json:"nextPageToken"`
-	ResultSizeEstimate int               `json:"resultSizeEstimate"`
+type GmailMessageListResponse struct {
+	Messages           []GmailMessageListItem `json:"messages"`
+	NextPageToken      string                 `json:"nextPageToken"`
+	ResultSizeEstimate int                    `json:"resultSizeEstimate"`
 }
 
 func NewGmailProvider(accessToken, refreshToken string) *GmailProvider {
@@ -99,7 +99,7 @@ func (gmail *GmailProvider) GetMail() {
 
 	fmt.Printf("%s", string(body))
 
-	var parsedBody MessageListResponse
+	var parsedBody GmailMessageListResponse
 	err = json.Unmarshal(body, &parsedBody)
 	if err != nil {
 		log.Fatalf("gmail: error parsing message list: %s\n", err)
@@ -111,7 +111,7 @@ func (gmail *GmailProvider) GetMail() {
 	}
 }
 
-func (gmail *GmailProvider) getMessage(id string) *Message {
+func (gmail *GmailProvider) getMessage(id string) *GmailMessage {
 	req := gmail.baseRequest("GET", "/gmail/v1/users/me/messages/"+id, nil)
 	req.URL.RawQuery = "format=metadata"
 
@@ -129,7 +129,7 @@ func (gmail *GmailProvider) getMessage(id string) *Message {
 		log.Fatalf("gmail: HTTP %d retrieving message id %q: %s", res.StatusCode, id, string(body))
 	}
 
-	var parsedMessage Message
+	var parsedMessage GmailMessage
 	err = json.Unmarshal(body, &parsedMessage)
 	if err != nil {
 		log.Fatalf("gmail: err parsing message id %q: %s", id, err)

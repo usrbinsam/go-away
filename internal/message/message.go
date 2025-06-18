@@ -12,7 +12,7 @@ type Message struct {
 	body    io.Reader
 }
 
-func NewMessage(headers []Header, body io.Reader) *Message {
+func NewMessage(headers []Header, body io.Reader) *Message { // XXX: rethink this
 	return &Message{headers, body}
 }
 
