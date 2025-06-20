@@ -6,66 +6,37 @@ import (
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/go-viper/mapstructure/v2"
+	"github.com/usrbinsam/go-away/internal/config"
 )
 
 type GmailProvider struct {
-	accessToken  string
-	refreshToken string
-	httpClient   *http.Client
+	config     *GmailConfig
+	httpClient *http.Client
 }
 
-type GmailMessageHeader struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
+func New(inboxConfig any) *GmailProvider {
+	var gmailConfig GmailConfig
+	err := mapstructure.Decode(inboxConfig, &gmailConfig)
+	if err != nil {
+		log.Fatalf("error decoding gmail config: %s", err)
+	}
 
-type GmailMessagePartBody struct {
-	AttachmentId string `json:"attachmentId"`
-	Size         int    `json:"size"`
-	Data         []byte `json:"data"`
-}
-
-type GmailMessagePart struct {
-	PartId   string               `json:"partId"`
-	MimeType string               `json:"mimeType"`
-	Filename string               `json:"filename,omitempty"`
-	Headers  []GmailMessageHeader `json:"headers"`
-	Body     GmailMessagePartBody `json:"body"`
-	Parts    []GmailMessagePart   `json:"parts"`
-}
-
-// GmailMessage is documented at https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages#GmailMessage
-type GmailMessage struct {
-	Id        string           `json:"id"`
-	ThreadId  string           `json:"threadId"`
-	Snippet   string           `json:"snippet,omitempty"`
-	Payload   GmailMessagePart `json:"payload"`
-	Raw       string           `json:"raw,omitempty"`
-	LabelIds  []string         `json:"labelIds,omitempty"`
-	HistoryId string           `json:"historyId"`
-}
-
-type GmailMessageListItem struct {
-	Id string `json:"id"`
-	// ThreadId string `json:"threadId"`
-}
-
-type GmailMessageListResponse struct {
-	Messages           []GmailMessageListItem `json:"messages"`
-	NextPageToken      string                 `json:"nextPageToken"`
-	ResultSizeEstimate int                    `json:"resultSizeEstimate"`
-}
-
-func NewGmailProvider(accessToken, refreshToken string) *GmailProvider {
 	return &GmailProvider{
-		accessToken:  accessToken,
-		refreshToken: refreshToken,
-		httpClient:   &http.Client{},
+		config:     &gmailConfig,
+		httpClient: &http.Client{},
 	}
 }
 
+func Init() (config.InboxType, GmailConfig) {
+	tokens := getGmailCreds()
+	inboxConfig := GmailConfig(tokens)
+	return InboxType, inboxConfig
+}
+
 func (gmail *GmailProvider) baseRequest(method, url string, body io.Reader) *http.Request {
-	if gmail.accessToken == "" {
+	if gmail.config.AccessToken == "" {
 		panic("missing access token")
 	}
 
@@ -75,7 +46,7 @@ func (gmail *GmailProvider) baseRequest(method, url string, body io.Reader) *htt
 		panic(err)
 	}
 
-	req.Header.Add("authorization", "Bearer "+gmail.accessToken)
+	req.Header.Add("authorization", "Bearer "+gmail.config.AccessToken)
 	return req
 }
 

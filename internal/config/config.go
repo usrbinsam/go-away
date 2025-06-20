@@ -1,12 +1,15 @@
 package config
 
-type GmailConfig struct {
-	AccessToken  string `json:"accessToken,omitempty"`
-	RefreshToken string `json:"refreshToken,omitempty"`
+type InboxType string
+
+type Inbox struct {
+	Type   InboxType      `json:"type"`
+	Config map[string]any `json:"config"`
 }
 
 type AppConfig struct {
-	GmailConfig GmailConfig `json:"gmail"`
+	Version int `json:"version"`
+	Inboxes []Inbox
 }
 
 type ConfigProvider interface {

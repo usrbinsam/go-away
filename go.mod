@@ -7,6 +7,8 @@ require (
 	modernc.org/sqlite v1.38.0
 )
 
+require github.com/go-viper/mapstructure/v2 v2.3.0
+
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect

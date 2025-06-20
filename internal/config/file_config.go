@@ -2,23 +2,26 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"log"
 	"os"
 )
 
-type UserHomeConfig struct {
-	BasePath string
+type FileConfig string
+
+func (fc *FileConfig) String() string {
+	return os.ExpandEnv(string(*fc))
 }
 
-func (uhc *UserHomeConfig) getFilename() string {
-	return os.ExpandEnv(fmt.Sprintf("%s/.go-away.json", uhc.BasePath))
-}
-
-func (uhc *UserHomeConfig) Load() *AppConfig {
-	fh, err := os.OpenFile(uhc.getFilename(), os.O_RDONLY, 0600)
+func (fc *FileConfig) Load() *AppConfig {
+	fn := fc.String()
+	fh, err := os.OpenFile(fn, os.O_RDONLY, 0600)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return &AppConfig{}
+		}
+
 		log.Fatalf("error opening app storage file: %s\n", err)
 	}
 
@@ -35,13 +38,13 @@ func (uhc *UserHomeConfig) Load() *AppConfig {
 	return &as
 }
 
-func (uhc *UserHomeConfig) Store(v *AppConfig) {
-	b, err := json.Marshal(v)
+func (fc *FileConfig) Store(v *AppConfig) {
+	b, err := json.MarshalIndent(v, "  ", "  ")
 	if err != nil {
 		log.Fatalf("error marshalling application storage: %s\n", err)
 	}
-
-	fh, err := os.OpenFile(uhc.getFilename(), os.O_WRONLY|os.O_CREATE, 0600)
+	fn := fc.String()
+	fh, err := os.OpenFile(fn, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		log.Fatalf("error opening app storage file: %s\n", err)
 	}
@@ -52,8 +55,8 @@ func (uhc *UserHomeConfig) Store(v *AppConfig) {
 	}
 }
 
-func (uhc *UserHomeConfig) Exists() bool {
-	_, err := os.Stat(uhc.getFilename())
+func (fc *FileConfig) Exists() bool {
+	_, err := os.Stat(fc.String())
 	if err == nil {
 		return true
 	}
@@ -65,10 +68,4 @@ func (uhc *UserHomeConfig) Exists() bool {
 	}
 
 	panic("unreachable")
-}
-
-func NewUserHomeConfig(basePath string) *UserHomeConfig {
-	return &UserHomeConfig{
-		BasePath: basePath,
-	}
 }
