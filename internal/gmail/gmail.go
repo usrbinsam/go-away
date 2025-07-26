@@ -6,62 +6,76 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 
-	"github.com/go-viper/mapstructure/v2"
-	"github.com/usrbinsam/go-away/internal/config"
+	"github.com/usrbinsam/go-away/internal/message"
+	"github.com/usrbinsam/go-away/internal/store"
 )
 
 type GmailProvider struct {
-	config     *GmailConfig
-	httpClient *http.Client
+	inboxConfig *store.InboxConfig
+	httpClient  *http.Client
+	oauthClient *oauthClient
+	refreshing  bool
 }
 
-func New(inboxConfig any) *GmailProvider {
-	var gmailConfig GmailConfig
-	err := mapstructure.Decode(inboxConfig, &gmailConfig)
+func New(store store.Store, inboxConfig *store.InboxConfig) *GmailProvider {
+	var (
+		clientID     = os.Getenv("GO_AWAY_GMAIL_CLIENT_ID")
+		clientSecret = os.Getenv("GO_AWAY_GMAIL_CLIENT_SECRET")
+	)
+
+	if clientID == "" || clientSecret == "" {
+		log.Fatalf("missing gmail oauth client credentials. ensure 'GO_AWAY_GMAIL_CLIENT_ID' and 'GO_AWAY_GMAIL_CLIENT_SECRET' are set")
+	}
+
+	provider := &GmailProvider{
+		inboxConfig: inboxConfig,
+		httpClient:  &http.Client{},
+		oauthClient: &oauthClient{
+			clientID, clientSecret,
+		},
+	}
+
+	provider.Init()
+	return provider
+}
+
+func (gmail *GmailProvider) Init() {
+	if gmail.inboxConfig.IsSet("credentials::accessToken") && gmail.inboxConfig.IsSet("credentials::refreshToken") {
+		log.Printf("gmail: using existing credentials")
+		return
+	}
+
+	tokens := gmail.oauthClient.getCredentials()
+	gmail.saveCredentials(tokens)
+}
+
+func (gmail *GmailProvider) saveCredentials(tokens *OAuthCredentials) {
+	log.Printf("saving gmail access token: %s", tokens.AccessToken)
+	gmail.inboxConfig.Set("credentials::accessToken", tokens.AccessToken)
+	if tokens.RefreshToken != "" {
+		gmail.inboxConfig.Set("credentials::refreshToken", tokens.RefreshToken)
+		log.Printf("saving gmail refresh token: %s", tokens.RefreshToken)
+	}
+}
+
+func (gmail *GmailProvider) GetMail() []*message.Message {
+	req, err := http.NewRequest("GET", "https://gmail.googleapis.com/gmail/v1/users/me/messages", nil)
 	if err != nil {
-		log.Fatalf("error decoding gmail config: %s", err)
+		log.Fatalf("gmail: error creating request: %s", err)
 	}
-
-	return &GmailProvider{
-		config:     &gmailConfig,
-		httpClient: &http.Client{},
-	}
-}
-
-func Init() (config.InboxType, GmailConfig) {
-	tokens := getGmailCreds()
-	inboxConfig := GmailConfig(tokens)
-	return InboxType, inboxConfig
-}
-
-func (gmail *GmailProvider) baseRequest(method, url string, body io.Reader) *http.Request {
-	if gmail.config.AccessToken == "" {
-		panic("missing access token")
-	}
-
-	url = "https://gmail.googleapis.com" + url
-	req, err := http.NewRequest(method, url, body)
-	if err != nil {
-		panic(err)
-	}
-
-	req.Header.Add("authorization", "Bearer "+gmail.config.AccessToken)
-	return req
-}
-
-func (gmail *GmailProvider) GetMail() {
-	req := gmail.baseRequest("GET", "/gmail/v1/users/me/messages", nil)
 	req.URL.RawQuery = "maxResults=3"
 
-	res, err := gmail.httpClient.Do(req)
+	log.Println("gmail: loading messages")
+	res, err := gmail.do(req)
 	if err != nil {
 		log.Fatalf("gmail: error listing messages: %s\n", err)
 	}
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		log.Fatalf("gmail: err reading response body while listing messages: %s\n", err)
+		log.Fatalf("gmail: err reading response body while listing messages: %s", err)
 	}
 
 	if res.StatusCode != 200 {
@@ -76,17 +90,24 @@ func (gmail *GmailProvider) GetMail() {
 		log.Fatalf("gmail: error parsing message list: %s\n", err)
 	}
 
-	for _, listItem := range parsedBody.Messages {
-		_ = gmail.getMessage(listItem.Id)
-		// log.Printf("%v", msg)
+	messages := make([]*message.Message, len(parsedBody.Messages))
+
+	for i, listItem := range parsedBody.Messages {
+		gMessage := gmail.getMessage(listItem.Id)
+		messages[i] = gMessage.ToMessage()
 	}
+
+	return messages
 }
 
 func (gmail *GmailProvider) getMessage(id string) *GmailMessage {
-	req := gmail.baseRequest("GET", "/gmail/v1/users/me/messages/"+id, nil)
+	req, err := http.NewRequest("GET", "https://gmail.googleapis.com/gmail/v1/users/me/messages/"+id, nil)
+	if err != nil {
+		log.Fatalf("gmail: unexpected err creating request: %s", err)
+	}
 	req.URL.RawQuery = "format=metadata"
 
-	res, err := gmail.httpClient.Do(req)
+	res, err := gmail.do(req)
 	if err != nil {
 		log.Fatalf("gmail: unexpected err retrieving message id %q: %s", id, err)
 	}
@@ -107,4 +128,36 @@ func (gmail *GmailProvider) getMessage(id string) *GmailMessage {
 	}
 	fmt.Println(string(body))
 	return &parsedMessage
+}
+
+func (gmail *GmailProvider) Send(to, subject, body string) error {
+	return nil
+}
+
+func (gmail *GmailProvider) do(req *http.Request) (*http.Response, error) {
+	accessToken := "Bearer " + gmail.inboxConfig.GetString("credentials::accessToken")
+	log.Printf("access token: %s", accessToken)
+	req.Header.Add("authorization", accessToken)
+
+	res, err := gmail.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode == 401 {
+		body, _ := io.ReadAll(res.Body)
+		if gmail.refreshing {
+			panic(fmt.Sprintf("gmail: got another 401 after refreshing the access token, %s", body))
+		} else {
+			log.Printf("gmail: 401, refreshing access token: %s", body)
+		}
+
+		tokens := gmail.oauthClient.refreshGmailCreds(gmail.inboxConfig.GetString("credentials::refreshToken"))
+		gmail.saveCredentials(tokens)
+		gmail.refreshing = true
+		return gmail.do(req)
+	}
+
+	gmail.refreshing = false
+	return res, err
 }

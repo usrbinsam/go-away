@@ -30,7 +30,11 @@ func TestHeaderScanner_ScanMatch(t *testing.T) {
 	)
 
 	scanner := &scanner.HeaderScanner{}
-	if !scanner.Scan(v) {
+	result, err := scanner.Scan(v)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+	if !result.Hit {
 		t.Errorf("expected message to be unsubscribe-able, but it was not")
 	}
 }
@@ -44,7 +48,11 @@ func TestHeaderScanner_ScanNoMatch(t *testing.T) {
 	)
 
 	scanner := &scanner.HeaderScanner{}
-	if scanner.Scan(v) {
+	result, err := scanner.Scan(v)
+	if err != nil {
+		t.Errorf("unexpected error: %s", err)
+	}
+	if result.Hit {
 		t.Errorf("message should not be unsubscribe-able, but it was")
 	}
 }

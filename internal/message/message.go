@@ -2,6 +2,7 @@ package message
 
 import (
 	"fmt"
+	"strings"
 )
 
 type Header struct {
@@ -20,7 +21,7 @@ func NewMessage(headers []Header, body string) *Message { // XXX: rethink this
 
 func (m *Message) GetHeader(name string) string {
 	for _, header := range m.headers {
-		if header.Name == name {
+		if strings.EqualFold(header.Name, name) {
 			return header.Value
 		}
 	}

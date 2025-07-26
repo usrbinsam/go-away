@@ -8,7 +8,7 @@ import (
 
 func TestStore_Open(t *testing.T) {
 	st := store.SqlStore{}
-	err := st.Open(":memory:")
+	err := st.Open(":memory:?_journal=WAL&_foreign_keys=on")
 	if err != nil {
 		t.Fatalf("failed to open store: %v", err)
 	}

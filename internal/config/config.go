@@ -1,15 +1,16 @@
 package config
 
-type InboxType string
+import "github.com/usrbinsam/go-away/internal/gmail"
 
 type Inbox struct {
-	Type   InboxType      `json:"type"`
-	Config map[string]any `json:"config"`
+	InboxKey string         `json:"type"`
+	Config   map[string]any `json:"config"`
 }
 
 type AppConfig struct {
-	Version int `json:"version"`
-	Inboxes []Inbox
+	Version       int `json:"version"`
+	Inboxes       []Inbox
+	GmailSettings gmail.GmailAppSettings
 }
 
 type ConfigProvider interface {

@@ -1,10 +1,17 @@
 package gmail
 
-import "github.com/usrbinsam/go-away/internal/config"
+var GmailInboxKey = "gmail"
 
-var InboxType config.InboxType = "gmail"
-
-type GmailConfig struct {
+type GmailInboxConfig struct {
 	AccessToken  string `json:"accessToken,omitempty"`
 	RefreshToken string `json:"refreshToken,omitempty"`
+}
+
+type GmailOAuthConfig struct {
+	ClientId     string `json:"clientId"`
+	ClientSecret string `json:"clientSecret"`
+}
+
+type GmailAppSettings struct {
+	GmailOAuthConfig
 }

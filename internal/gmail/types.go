@@ -1,5 +1,11 @@
 package gmail
 
+import (
+	"strings"
+
+	"github.com/usrbinsam/go-away/internal/message"
+)
+
 type GmailMessageHeader struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
@@ -29,6 +35,29 @@ type GmailMessage struct {
 	Raw       string           `json:"raw,omitempty"`
 	LabelIds  []string         `json:"labelIds,omitempty"`
 	HistoryId string           `json:"historyId"`
+}
+
+func (gmailMessage *GmailMessage) GetHeader(name string) string {
+	for _, header := range gmailMessage.Payload.Headers {
+		if strings.EqualFold(header.Name, name) {
+			return header.Value
+		}
+	}
+	return ""
+}
+
+func (gmailMessage *GmailMessage) Body() string {
+	return string(gmailMessage.Payload.Body.Data)
+}
+
+func (gmailMessage *GmailMessage) ToMessage() *message.Message {
+	// annoying conversion because slice invariance is impossible in Go
+	headers := make([]message.Header, len(gmailMessage.Payload.Headers))
+	for i, header := range gmailMessage.Payload.Headers {
+		headers[i] = message.Header{Name: header.Name, Value: header.Value}
+	}
+
+	return message.NewMessage(headers, gmailMessage.Body())
 }
 
 type GmailMessageListItem struct {

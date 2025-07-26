@@ -26,6 +26,7 @@ go.work.sum
 
 # env file
 .env
+.envrc
 
 # Editor/IDE
 # .idea/
@@ -33,3 +34,4 @@ go.work.sum
 #
 
 credentials.json
+*.sqlite3
