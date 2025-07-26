@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -52,11 +53,15 @@ func goAway(unsubscriber *Unsubscriber) {
 
 	log.Printf("scanned %d messages", scanned)
 	log.Printf("scanners found %d messages to unsubscribe", len(results))
+
+	for _, result := range results {
+		fmt.Printf("%+v\n", result)
+	}
 }
 
 func main() {
 	st := &store.SQLStore{}
-	st.Open("go-away.sqlite3")
+	st.Open("go-away.sqlite3?_journal=WAL&_foreign_keys=on")
 
 	inboxes := st.ListInboxes()
 	safeSenders := []string{}
